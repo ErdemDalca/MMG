@@ -1,4 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
+import { useState } from 'react';
 import { Dimensions, ImageBackground, StyleSheet, Text, TextInput, Touchable, TouchableOpacity, View } from 'react-native';
 
 import Icon from 'react-native-vector-icons/Ionicons'
@@ -6,7 +7,24 @@ import Icon from 'react-native-vector-icons/Ionicons'
 const width = Dimensions.get('window').width
 const height = Dimensions.get('window').height
 
+
+
+
 export default function App() {
+  const [SIFRE, setSIFRE] = useState('123')
+  const [EMAIL, setEMAIL] = useState('d@gmail.com')
+  const [sifre, setsifre] = useState('')
+  const [email, setemail] = useState('')
+
+  function Login() {
+    if(SIFRE == sifre && EMAIL == email){
+      alert("Giriş Başarılı")
+    }
+    else{
+      alert("Email veya Şifre Hatalı!!!")
+    }
+  }
+
   return (
     <ImageBackground source={require('./img/gow.jpg')} style = {styles.BackGround}>
       <View style={styles.container}>
@@ -16,7 +34,7 @@ export default function App() {
 
             </Icon>
           </View>
-          <TextInput style = {styles.text_Input} placeholder='Email'>
+          <TextInput style = {styles.text_Input} placeholder='Email' value= {email} onChangeText={setemail}>
 
           </TextInput>
         </View>
@@ -27,13 +45,13 @@ export default function App() {
                 
             </Icon>
           </View>
-          <TextInput style = {styles.text_Input} placeholder='Şifre'>
+          <TextInput style = {styles.text_Input} placeholder='Şifre' value= {sifre} onChangeText={setsifre}>
 
           </TextInput>
         </View>
 
         <View style = {styles.button_container}>
-          <TouchableOpacity style = {styles.button}>
+          <TouchableOpacity style = {styles.button} onPress={Login}>
             <Text style = {styles.button_text} >
               Giriş Yap
             </Text>
