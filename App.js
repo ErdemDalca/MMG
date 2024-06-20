@@ -1,65 +1,139 @@
 import { StatusBar } from 'expo-status-bar';
-import { useState } from 'react';
-import { Dimensions, ImageBackground, StyleSheet, Text, TextInput, Touchable, TouchableOpacity, View } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { Dimensions, ImageBackground, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { NavigationContainer } from '@react-navigation/native';
+import Icon from 'react-native-vector-icons/Ionicons';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
+import { getDatabase, ref, set, onValue } from 'firebase/database';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import AnaSayfa from './Ekranlar/anaSayfa';
+import Favoriler from './Ekranlar/favoriler';
+import Profil from './Ekranlar/profil';
 
-import Icon from 'react-native-vector-icons/Ionicons'
-
-const width = Dimensions.get('window').width
-const height = Dimensions.get('window').height
-
-
-
+const width = Dimensions.get('window').width;
+const height = Dimensions.get('window').height;
 
 export default function App() {
-  const [SIFRE, setSIFRE] = useState('123')
-  const [EMAIL, setEMAIL] = useState('d@gmail.com')
-  const [sifre, setsifre] = useState('')
-  const [email, setemail] = useState('')
+  const Stack = createNativeStackNavigator();
+  const [sifre, setsifre] = useState('');
+  const [email, setemail] = useState('');
+  const auth = getAuth();
+  const database = getDatabase();
 
-  function Login() {
-    if(SIFRE == sifre && EMAIL == email){
-      alert("Giriş Başarılı")
-    }
-    else{
-      alert("Email veya Şifre Hatalı!!!")
-    }
-  }
+  // navigationRef tanımlanması
+  const navigationRef = useRef(null);
+
+  useEffect(() => {
+    const checkToken = async () => {
+      try {
+        const userToken = await AsyncStorage.getItem('userToken');
+        if (userToken) {
+          const user = JSON.parse(userToken);
+          navigationRef.current?.navigate('AnaEkran', { uid: user.uid });
+        }
+      } catch (error) {
+        console.error('Error checking token', error);
+      }
+    };
+    checkToken();
+  }, []);
+
+  const saveToken = async (user) => {
+    const userData = JSON.stringify({ uid: user.uid, email: user.email });
+    await AsyncStorage.setItem('userToken', userData);
+  };
+
+  const Register = (navigation) => {
+    createUserWithEmailAndPassword(auth, email, sifre)
+      .then((userCredential) => {
+        const user = userCredential.user;
+        const userData = {
+          email: user.email,
+          uid: user.uid,
+        };
+        const usersRef = ref(database, 'kullanıcılar/' + user.uid);
+        set(usersRef, userData)
+          .then(() => {
+            saveToken(user);
+            navigation.navigate('AnaEkran', { uid: user.uid });
+          })
+          .catch((error) => {
+            alert(`Error: ${error.message}`);
+          });
+      })
+      .catch((error) => {
+        alert(`Error: ${error.message}`);
+      });
+  };
+
+  const Login = (navigation) => {
+    signInWithEmailAndPassword(auth, email, sifre)
+      .then((userCredential) => {
+        const user = userCredential.user;
+        const usersRef = ref(database, 'kullanıcılar/' + user.uid);
+        onValue(usersRef, (snapshot) => {
+          const userData = snapshot.val();
+          if (!userData) {
+            const userData = {
+              email: user.email,
+              uid: user.uid,
+            };
+            set(usersRef, userData)
+              .then(() => {
+                saveToken(user);
+                navigation.navigate('AnaEkran', { uid: user.uid });
+              })
+              .catch((error) => {
+                alert(`Error: ${error.message}`);
+              });
+          } else {
+            saveToken(user);
+            navigation.navigate('AnaEkran', { uid: user.uid });
+          }
+        });
+      })
+      .catch((error) => {
+        alert(`Error: ${error.message}`);
+      });
+  };
 
   return (
-    <ImageBackground source={require('./img/gow.jpg')} style = {styles.BackGround}>
-      <View style={styles.container}>
-        <View style = {styles.text_Input_Container}>
-          <View style = {styles.Icon_Container}>
-            <Icon name='person-circle-sharp' size={30} color={'#fff'}>
-
-            </Icon>
-          </View>
-          <TextInput style = {styles.text_Input} placeholder='Email' value= {email} onChangeText={setemail}>
-
-          </TextInput>
-        </View>
-
-        <View style = {styles.text_Input_Container}>
-          <View style = {styles.Icon_Container}>
-            <Icon name='keypad-sharp' size={30} color={'#fff'}>
-                
-            </Icon>
-          </View>
-          <TextInput style = {styles.text_Input} placeholder='Şifre' value= {sifre} onChangeText={setsifre}>
-
-          </TextInput>
-        </View>
-
-        <View style = {styles.button_container}>
-          <TouchableOpacity style = {styles.button} onPress={Login}>
-            <Text style = {styles.button_text} >
-              Giriş Yap
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </ImageBackground>
-    
+    <NavigationContainer ref={navigationRef}>
+      <Stack.Navigator initialRouteName="Giris">
+        <Stack.Screen name='AnaEkran' component={AnaSayfa} />
+        <Stack.Screen name='Favoriler' component={Favoriler} />
+        <Stack.Screen name='Profil' component={Profil} />
+        <Stack.Screen name='Giris' options={{ headerShown: false }}>
+          {({ navigation }) => (
+            <ImageBackground source={require('./img/gow.jpg')} style={styles.BackGround}>
+              <View style={styles.container}>
+                <View style={styles.text_Input_Container}>
+                  <View style={styles.Icon_Container}>
+                    <Icon name='person-circle-sharp' size={30} color={'#fff'} />
+                  </View>
+                  <TextInput style={styles.text_Input} placeholder='Email' value={email} onChangeText={setemail} />
+                </View>
+                <View style={styles.text_Input_Container}>
+                  <View style={styles.Icon_Container}>
+                    <Icon name='keypad-sharp' size={30} color={'#fff'} />
+                  </View>
+                  <TextInput style={styles.text_Input} placeholder='Şifre' value={sifre} onChangeText={setsifre} secureTextEntry />
+                </View>
+                <View style={styles.button_container}>
+                  <TouchableOpacity style={[styles.button, styles.registerButton]} onPress={() => Register(navigation)}>
+                    <Text style={styles.button_text}>Kayıt Ol</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.button, styles.loginButton]} onPress={() => Login(navigation)}>
+                    <Text style={[styles.button_text, styles.loginButtonText]}>Giriş Yap</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </ImageBackground>
+          )}
+        </Stack.Screen>
+      </Stack.Navigator>
+    </NavigationContainer>
   );
 }
 
@@ -70,12 +144,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingTop: 50,
   },
-  BackGround:{
+  BackGround: {
     width: width,
     height: height,
     alignItems: 'center',
     justifyContent: 'center',
-    flex : 1,
+    flex: 1,
   },
   text_Input_Container: {
     width: 100,
@@ -86,7 +160,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   text_Input: {
-    width: width/ 100 * 60,
+    width: width / 100 * 60,
     height: 50,
     backgroundColor: '#fff',
     borderRadius: 6,
@@ -96,8 +170,6 @@ const styles = StyleSheet.create({
     textAlign: 'left',
     elevation: 5,
     padding: 5,
-    
-
   },
   Icon_Container: {
     width: 50,
@@ -109,7 +181,6 @@ const styles = StyleSheet.create({
     elevation: 3,
     borderRadius: 5,
     backgroundColor: '#ff0000',
-
   },
   button_container: {
     flexDirection: 'row',
@@ -118,19 +189,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 20,
-    width: 80,
-    height: 40,
-    borderColor: '#ff0000',
-    backgroundColor: '#ff0000',
   },
   button: {
     width: 80,
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
+    marginHorizontal: 5,
+  },
+  registerButton: {
+    backgroundColor: '#ff0000',
+  },
+  loginButton: {
+    backgroundColor: '#fff',
+    borderColor: '#ff0000',
+    borderWidth: 1,
   },
   button_text: {
     color: '#fff',
   },
-  
+  loginButtonText: {
+    color: '#ff0000',
+  },
 });

@@ -1,0 +1,1 @@
+export {default} from './Card';//card klasöründe ne dönüyorsa bana getir.(sihirli bir js dosyası.)
